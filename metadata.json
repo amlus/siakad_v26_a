@@ -1,0 +1,7 @@
+{
+  "name": "SIAKAD PKBM At Taqwa Mandiri",
+  "description": "Sistem Informasi Akademik terintegrasi untuk PKBM At Taqwa Mandiri, mencakup manajemen data induk, penjadwalan, KBM, penilaian, dan analisis performa berbasis AI.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
