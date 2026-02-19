@@ -3,11 +3,8 @@ import React, { useState } from 'react';
 import { Tutor } from '../types';
 
 const initialTutors: Tutor[] = [
-  // Fix: added missing required property 'tanggalLahir'
-  { id: '1', nama: 'Ahmad S.Pd', nuptk: '12345678', jabatan: 'Tutor Utama', mapel: ['Matematika', 'IPA'], kelas: ['Kelas 10', 'Kelas 11', 'Kelas 12'], tugasTambahan: ['Wali Kelas 10', 'Koordinator Kurikulum'], tanggalLahir: '1980-01-01' },
-  // Fix: added missing required property 'tanggalLahir'
-  { id: '2', nama: 'Siti M.Pd', nuptk: '87654321', jabatan: 'Tutor', mapel: ['Bahasa Indonesia'], kelas: ['Kelas 7', 'Kelas 8', 'Kelas 9'], tugasTambahan: ['Penanggungjawab Titik Layanan Pancoran Mas'], tanggalLahir: '1985-05-05' },
-  // Fix: added missing required property 'tanggalLahir'
+  { id: '1', nama: 'Ahmad S.Pd', nuptk: '12345678', jabatan: 'Tutor Utama', mapel: ['Matematika', 'IPA', 'Fisika', 'Kimia'], kelas: ['Kelas 10', 'Kelas 11', 'Kelas 12'], tugasTambahan: ['Wali Kelas 10', 'Koordinator Kurikulum', 'Pembina OSIS', 'Tim IT'], tanggalLahir: '1980-01-01' },
+  { id: '2', nama: 'Siti M.Pd', nuptk: '87654321', jabatan: 'Tutor', mapel: ['Bahasa Indonesia', 'Sastra'], kelas: ['Kelas 7', 'Kelas 8', 'Kelas 9'], tugasTambahan: ['Penanggungjawab Titik Layanan Pancoran Mas', 'Sekretaris PKBM'], tanggalLahir: '1985-05-05' },
   { id: '3', nama: 'Budi Santoso S.Ag', nuptk: '11223344', jabatan: 'Tutor', mapel: ['Agama', 'PPKn'], kelas: ['Kelas 10', 'Kelas 12'], tugasTambahan: [], tanggalLahir: '1990-10-10' },
 ];
 
@@ -23,13 +20,11 @@ const TutorManagement: React.FC = () => {
     mapelInput: '',
     kelasInput: '',
     tugasInput: '',
-    // Fix: added tanggalLahir to form data
     tanggalLahir: ''
   });
 
   const openAddModal = () => {
     setEditingTutor(null);
-    // Fix: added default tanggalLahir for new tutor
     setFormData({ nama: '', nuptk: '', jabatan: 'Tutor', mapelInput: '', kelasInput: '', tugasInput: '', tanggalLahir: '1990-01-01' });
     setIsModalOpen(true);
   };
@@ -43,7 +38,6 @@ const TutorManagement: React.FC = () => {
       mapelInput: tutor.mapel.join(', '),
       kelasInput: tutor.kelas.join(', '),
       tugasInput: (tutor.tugasTambahan || []).join(', '),
-      // Fix: added tanggalLahir to editing form data
       tanggalLahir: tutor.tanggalLahir
     });
     setIsModalOpen(true);
@@ -58,7 +52,6 @@ const TutorManagement: React.FC = () => {
     if (editingTutor) {
       setTutors(tutors.map(t => t.id === editingTutor.id ? { ...t, ...formData, mapel, kelas, tugasTambahan, tanggalLahir: formData.tanggalLahir } : t));
     } else {
-      // Fix: added missing property 'tanggalLahir' to new tutor object
       const newTutor: Tutor = {
         id: Math.random().toString(36).substr(2, 9),
         nama: formData.nama,
@@ -102,7 +95,7 @@ const TutorManagement: React.FC = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {tutors.map((tutor) => (
-          <div key={tutor.id} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all group relative overflow-hidden flex flex-col h-full">
+          <div key={tutor.id} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-md transition-all group relative overflow-hidden flex flex-col h-full">
             <div className="flex items-center gap-4 mb-5">
               <div className="w-14 h-14 rounded-2xl bg-emerald-50 flex items-center justify-center text-emerald-600 font-bold text-xl border border-emerald-100 group-hover:bg-emerald-600 group-hover:text-white transition-colors duration-300">
                 {tutor.nama.charAt(0)}
@@ -121,28 +114,42 @@ const TutorManagement: React.FC = () => {
               <div>
                 <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1.5">Mata Pelajaran</p>
                 <div className="flex flex-wrap gap-1">
-                  {tutor.mapel.map((m, i) => (
-                    <span key={i} className="bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded text-[10px] font-bold border border-emerald-100">{m}</span>
+                  {tutor.mapel.slice(0, 3).map((m, i) => (
+                    <span key={i} className="bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded text-[10px] font-bold border border-emerald-100 truncate max-w-[100px]">{m}</span>
                   ))}
+                  {tutor.mapel.length > 3 && (
+                    <span title={tutor.mapel.slice(3).join(', ')} className="bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-[10px] font-bold border border-slate-200 cursor-help">+{tutor.mapel.length - 3}</span>
+                  )}
                 </div>
               </div>
 
               <div>
                 <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1.5">Kelas Diampu</p>
                 <div className="flex flex-wrap gap-1">
-                  {tutor.kelas.map((k, i) => (
-                    <span key={i} className="bg-blue-50 text-blue-600 px-2 py-0.5 rounded text-[10px] font-bold border border-blue-100">{k}</span>
+                  {tutor.kelas.slice(0, 3).map((k, i) => (
+                    <span key={i} className="bg-blue-50 text-blue-600 px-2 py-0.5 rounded text-[10px] font-bold border border-blue-100 truncate max-w-[100px]">{k}</span>
                   ))}
+                  {tutor.kelas.length > 3 && (
+                    <span title={tutor.kelas.slice(3).join(', ')} className="bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-[10px] font-bold border border-slate-200 cursor-help">+{tutor.kelas.length - 3}</span>
+                  )}
                 </div>
               </div>
 
               {tutor.tugasTambahan && tutor.tugasTambahan.length > 0 && (
-                <div>
+                <div className="pt-2 border-t border-slate-50">
                   <p className="text-[10px] text-amber-500 font-bold uppercase tracking-widest mb-1.5">Tugas Tambahan</p>
                   <div className="flex flex-wrap gap-1">
-                    {tutor.tugasTambahan.map((t, i) => (
-                      <span key={i} className="bg-amber-50 text-amber-600 px-2 py-0.5 rounded text-[10px] font-bold border border-amber-100">{t}</span>
+                    {tutor.tugasTambahan.slice(0, 2).map((t, i) => (
+                      <span key={i} className="bg-amber-50 text-amber-600 px-2 py-0.5 rounded text-[10px] font-bold border border-amber-100 truncate max-w-[130px]">{t}</span>
                     ))}
+                    {tutor.tugasTambahan.length > 2 && (
+                      <span 
+                        title={tutor.tugasTambahan.slice(2).join(', ')} 
+                        className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded text-[10px] font-bold border border-amber-200 cursor-help flex items-center gap-1"
+                      >
+                        +{tutor.tugasTambahan.length - 2} Lainnya
+                      </span>
+                    )}
                   </div>
                 </div>
               )}
@@ -178,7 +185,7 @@ const TutorManagement: React.FC = () => {
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
               </button>
             </div>
-            <form onSubmit={handleSaveTutor} className="p-8 space-y-4 max-h-[70vh] overflow-y-auto">
+            <form onSubmit={handleSaveTutor} className="p-8 space-y-4 max-h-[70vh] overflow-y-auto custom-scrollbar">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Nama Lengkap</label>
@@ -198,7 +205,6 @@ const TutorManagement: React.FC = () => {
                     <option>Tutor Pendamping</option>
                   </select>
                 </div>
-                {/* Fix: Added input for tanggalLahir */}
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tanggal Lahir</label>
                   <input required type="date" className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500" value={formData.tanggalLahir} onChange={e => setFormData({...formData, tanggalLahir: e.target.value})} />
