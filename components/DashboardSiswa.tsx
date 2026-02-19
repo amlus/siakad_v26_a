@@ -11,7 +11,7 @@ const globalSchedules = [
   { id: '5', hari: 'Jumat', jam: '09:00 - 10:30', mapel: 'Bahasa Indonesia', program: 'Paket C', kelas: 'Kelas 10', tutor: 'Siti M.Pd', ruang: 'R. 102' },
 ];
 
-const DashboardSiswa: React.FC<{ user: User }> = ({ user }) => {
+const DashboardSiswa: React.FC<{ user: User, onViewCalendar?: () => void }> = ({ user, onViewCalendar }) => {
   // Filter schedules to only show what's relevant for this specific student
   const mySchedules = globalSchedules.filter(
     s => s.kelas === user.kelas && s.program === user.program
@@ -44,9 +44,12 @@ const DashboardSiswa: React.FC<{ user: User }> = ({ user }) => {
           </p>
           <div className="mt-8 flex flex-wrap gap-4">
             <button className="bg-white text-emerald-900 px-6 py-3 rounded-2xl font-black text-sm shadow-lg hover:scale-105 transition-transform">
-              Lihat Materi Belajar
+              Materi Belajar
             </button>
-            <button className="bg-black/20 backdrop-blur-md border border-white/30 px-6 py-3 rounded-2xl font-bold text-sm hover:bg-black/30 transition-all">
+            <button 
+              onClick={onViewCalendar}
+              className="bg-black/20 backdrop-blur-md border border-white/30 px-6 py-3 rounded-2xl font-bold text-sm hover:bg-black/30 transition-all"
+            >
               Presensi Cepat
             </button>
           </div>
@@ -70,7 +73,12 @@ const DashboardSiswa: React.FC<{ user: User }> = ({ user }) => {
               </h3>
               <div className="flex gap-1 bg-slate-100 p-1 rounded-xl">
                  <button className="px-3 py-1.5 bg-white rounded-lg text-xs font-bold text-slate-800 shadow-sm">List View</button>
-                 <button className="px-3 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-slate-600 transition-colors">Calendar</button>
+                 <button 
+                  onClick={onViewCalendar}
+                  className="px-3 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-slate-600 transition-colors"
+                 >
+                   Calendar
+                 </button>
               </div>
             </div>
 
@@ -117,14 +125,6 @@ const DashboardSiswa: React.FC<{ user: User }> = ({ user }) => {
                   </div>
                 );
               })}
-              
-              {mySchedules.length === 0 && (
-                <div className="py-20 text-center opacity-40 grayscale flex flex-col items-center">
-                  <svg className="w-16 h-16 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                  <p className="font-bold">Belum ada jadwal yang tersedia untuk kelas kamu.</p>
-                  <p className="text-sm">Hubungi Tutor atau Admin PKBM.</p>
-                </div>
-              )}
             </div>
           </div>
         </div>
@@ -182,9 +182,6 @@ const DashboardSiswa: React.FC<{ user: User }> = ({ user }) => {
                 <p className="text-xs text-slate-500 mt-2">Materi: Segitiga Siku-siku</p>
               </div>
             </div>
-            <button className="w-full mt-6 py-3 border-2 border-slate-100 rounded-2xl text-xs font-black text-slate-400 hover:text-emerald-600 hover:border-emerald-100 transition-all">
-              Lihat Semua Tugas
-            </button>
           </div>
         </div>
       </div>

@@ -2,26 +2,38 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { UserRole } from '../types';
 
+interface WargaRecap {
+  id: string;
+  name: string;
+  kelas: string;
+  hadir: number;
+  izin: number;
+  sakit: number;
+  alpa: number;
+  percentage: number;
+  signature?: string; // Menampung base64 mock tanda tangan
+}
+
 const AttendanceSystem: React.FC<{ role: UserRole, userId: string }> = ({ role, userId }) => {
   const [selectedMapel, setSelectedMapel] = useState('Matematika');
   const [hasCheckedIn, setHasCheckedIn] = useState(false);
   const [activeRecapTab, setActiveRecapTab] = useState<'warga' | 'tutor'>('warga');
+  const [isTutorSigned, setIsTutorSigned] = useState(false);
+  const [viewingSignature, setViewingSignature] = useState<string | null>(null);
   
-  // Face Recognition States
-  const [isCameraActive, setIsCameraActive] = useState(false);
-  const [isScanning, setIsScanning] = useState(false);
-  const [scanProgress, setScanProgress] = useState(0);
-  const [scanStatus, setScanStatus] = useState<'idle' | 'detecting' | 'verifying' | 'matching' | 'success'>('idle');
-  const [simulatedCoords, setSimulatedCoords] = useState({ x: 0, y: 0 });
-  
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
+  // Signature States
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [isEmpty, setIsEmpty] = useState(true);
 
-  const mockWargaRecap = [
-    { id: '1', name: 'Budi Santoso', kelas: 'Kelas 10', hadir: 18, izin: 2, sakit: 1, alpa: 0, percentage: 85 },
-    { id: '2', name: 'Siti Aminah', kelas: 'Kelas 8', hadir: 20, izin: 0, sakit: 1, alpa: 0, percentage: 95 },
-    { id: '3', name: 'Asep Saepul', kelas: 'Kelas 12', hadir: 15, izin: 4, sakit: 0, alpa: 2, percentage: 71 },
-    { id: '4', name: 'Dewi Lestari', kelas: 'Kelas 6', hadir: 21, izin: 0, sakit: 0, alpa: 0, percentage: 100 },
+  // Mock Signature Data (Placeholder base64 signatures)
+  const mockSignature = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCAxMDAgNDAiPjxwYXRoIGQ9Ik0xMCAzMCBDIDIwIDEwLCA0MCAxMCwgNTAgMzAgQyA2MCA1MCwgODAgNTAsIDkwIDMwIiBmaWxsPSJub25lIiBzdHJva2U9IiMwZjE3MmEiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+PC9zdmc+";
+
+  const mockWargaRecap: WargaRecap[] = [
+    { id: '1', name: 'Budi Santoso', kelas: 'Kelas 10', hadir: 18, izin: 2, sakit: 1, alpa: 0, percentage: 85, signature: mockSignature },
+    { id: '2', name: 'Siti Aminah', kelas: 'Kelas 8', hadir: 20, izin: 0, sakit: 1, alpa: 0, percentage: 95, signature: mockSignature },
+    { id: '3', name: 'Asep Saepul', kelas: 'Kelas 12', hadir: 15, izin: 4, sakit: 0, alpa: 2, percentage: 71, signature: mockSignature },
+    { id: '4', name: 'Dewi Lestari', kelas: 'Kelas 6', hadir: 21, izin: 0, sakit: 0, alpa: 0, percentage: 100, signature: mockSignature },
   ];
 
   const mockTutorRecap = [
@@ -40,73 +52,69 @@ const AttendanceSystem: React.FC<{ role: UserRole, userId: string }> = ({ role, 
   const isAdmin = role === UserRole.ADMIN;
   const isTutor = role === UserRole.TUTOR;
 
-  const startCamera = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } } 
-      });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        streamRef.current = stream;
-        setIsCameraActive(true);
-        setScanStatus('detecting');
-      }
-    } catch (err) {
-      console.error("Camera access denied:", err);
-      alert("Akses kamera ditolak. Silakan izinkan kamera untuk menggunakan fitur Face Recognition.");
-    }
+  // Signature Logic
+  const startDrawing = (e: React.MouseEvent | React.TouchEvent) => {
+    setIsDrawing(true);
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const pos = getPos(e);
+    ctx.beginPath();
+    ctx.moveTo(pos.x, pos.y);
+    setIsEmpty(false);
   };
 
-  const stopCamera = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-      streamRef.current = null;
-    }
-    setIsCameraActive(false);
-    setScanStatus('idle');
+  const draw = (e: React.MouseEvent | React.TouchEvent) => {
+    if (!isDrawing) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const pos = getPos(e);
+    ctx.lineTo(pos.x, pos.y);
+    ctx.stroke();
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = '#0f172a';
   };
 
-  const handleFaceScan = () => {
-    if (isScanning) return;
-    setIsScanning(true);
-    setScanStatus('verifying');
-    setScanProgress(0);
-    
-    // Simulate biometric scanning stages
-    let progress = 0;
-    const interval = setInterval(() => {
-      progress += 2;
-      setScanProgress(progress);
-      
-      // Dynamic status messages based on progress
-      if (progress > 30 && progress < 60) setScanStatus('verifying');
-      if (progress >= 60) setScanStatus('matching');
-
-      // Randomize coords to look "active"
-      setSimulatedCoords({
-        x: Math.floor(Math.random() * 100),
-        y: Math.floor(Math.random() * 100)
-      });
-
-      if (progress >= 100) {
-        clearInterval(interval);
-        setTimeout(() => {
-          setScanStatus('success');
-          setHasCheckedIn(true);
-          setIsScanning(false);
-          stopCamera();
-        }, 1000);
-      }
-    }, 50);
+  const endDrawing = () => {
+    setIsDrawing(false);
   };
 
-  useEffect(() => {
-    return () => stopCamera();
-  }, []);
+  const getPos = (e: React.MouseEvent | React.TouchEvent) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
+    const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
+    return {
+      x: clientX - rect.left,
+      y: clientY - rect.top
+    };
+  };
+
+  const clearSignature = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    setIsEmpty(true);
+  };
+
+  const saveSignature = () => {
+    if (isEmpty) return alert("Silakan berikan tanda tangan terlebih dahulu.");
+    setHasCheckedIn(true);
+    if (isTutor) setIsTutorSigned(true);
+  };
 
   if (isAdmin) {
     return (
-      <div className="space-y-8 animate-in fade-in duration-500 print:m-0 print:p-0">
+      <div className="space-y-8 animate-in fade-in duration-500 print:m-0 print:p-0 relative">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 print:hidden">
           <div>
             <h2 className="text-2xl font-bold text-slate-800">Rekapitulasi Kehadiran</h2>
@@ -116,10 +124,7 @@ const AttendanceSystem: React.FC<{ role: UserRole, userId: string }> = ({ role, 
             onClick={() => window.print()}
             className="bg-slate-800 text-white px-6 py-3 rounded-2xl flex items-center gap-2 hover:bg-slate-900 transition-all shadow-lg font-bold text-sm"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.821 21 12m0 0-3.18-1.821m3.18 1.821-3.18 1.821M17.28 10.179 3 12m0 0 3.18 1.821M3 12l3.18-1.821" />
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 6.75h10.5a2.25 2.25 0 0 1 2.25 2.25v6.75a2.25 2.25 0 0 1-2.25 2.25H6.75a2.25 2.25 0 0 1-2.25-2.25V9a2.25 2.25 0 0 1 2.25-2.25Z" />
-            </svg>
+            <span className="material-symbols-outlined text-sm">print</span>
             Cetak Rekapitulasi
           </button>
         </div>
@@ -153,16 +158,29 @@ const AttendanceSystem: React.FC<{ role: UserRole, userId: string }> = ({ role, 
                   <th className="px-8 py-4">{activeRecapTab === 'warga' ? 'Warga Belajar' : 'Tutor'}</th>
                   <th className="px-4 py-4">{activeRecapTab === 'warga' ? 'Kelas' : 'Mapel Utama'}</th>
                   <th className="px-4 py-4 text-center">Hadir</th>
+                  <th className="px-4 py-4 text-center">{activeRecapTab === 'warga' ? 'Bukti TTD' : 'Aksi'}</th>
                   <th className="px-8 py-4 text-right">Persentase</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {activeRecapTab === 'warga' ? (
                   mockWargaRecap.map(item => (
-                    <tr key={item.id} className="hover:bg-slate-50/50 text-sm">
+                    <tr key={item.id} className="hover:bg-slate-50/50 text-sm group transition-all">
                       <td className="px-8 py-4 font-bold text-slate-800">{item.name}</td>
                       <td className="px-4 py-4 text-slate-500 font-medium">{item.kelas}</td>
                       <td className="px-4 py-4 text-center font-bold text-emerald-600">{item.hadir}</td>
+                      <td className="px-4 py-4 text-center">
+                        {item.signature ? (
+                          <div 
+                            onClick={() => setViewingSignature(item.signature!)}
+                            className="inline-block cursor-pointer bg-slate-50 p-1 rounded-lg border border-slate-200 hover:border-emerald-500 hover:shadow-md transition-all group-hover:bg-white"
+                          >
+                            <img src={item.signature} alt="ttd" className="h-6 w-12 object-contain opacity-70 group-hover:opacity-100" />
+                          </div>
+                        ) : (
+                          <span className="text-slate-300 italic text-[10px]">Belum Ada</span>
+                        )}
+                      </td>
                       <td className="px-8 py-4 text-right font-black text-slate-800">{item.percentage}%</td>
                     </tr>
                   ))
@@ -172,6 +190,9 @@ const AttendanceSystem: React.FC<{ role: UserRole, userId: string }> = ({ role, 
                       <td className="px-8 py-4 font-bold text-slate-800">{item.name}</td>
                       <td className="px-4 py-4 text-slate-500 font-medium">{item.mapel}</td>
                       <td className="px-4 py-4 text-center font-bold text-emerald-600">{item.hadir}</td>
+                      <td className="px-4 py-4 text-center">
+                        <button className="text-indigo-600 font-black text-[10px] uppercase hover:underline">Lihat Detail</button>
+                      </td>
                       <td className="px-8 py-4 text-right font-black text-slate-800">{item.percentage}%</td>
                     </tr>
                   ))
@@ -180,42 +201,100 @@ const AttendanceSystem: React.FC<{ role: UserRole, userId: string }> = ({ role, 
             </table>
           </div>
         </div>
+
+        {/* Modal Lihat Tanda Tangan */}
+        {viewingSignature && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300 print:hidden">
+            <div className="bg-white rounded-[3rem] shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200 border-8 border-white">
+              <div className="p-8 flex flex-col items-center">
+                <div className="w-full flex justify-between items-center mb-6">
+                  <h3 className="text-lg font-black text-slate-800 uppercase tracking-widest">Bukti Tanda Tangan Digital</h3>
+                  <button onClick={() => setViewingSignature(null)} className="p-2 hover:bg-slate-100 rounded-full transition-all">
+                    <span className="material-symbols-outlined text-slate-400">close</span>
+                  </button>
+                </div>
+                
+                <div className="w-full bg-slate-50 border-2 border-dashed border-slate-200 rounded-[2rem] p-10 flex items-center justify-center min-h-[250px] shadow-inner">
+                  <img src={viewingSignature} alt="Signature large" className="max-w-full h-auto drop-shadow-lg" />
+                </div>
+                
+                <div className="mt-8 flex gap-3 w-full">
+                  <button 
+                    onClick={() => setViewingSignature(null)}
+                    className="flex-1 py-4 bg-slate-100 text-slate-500 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-200 transition-all"
+                  >
+                    Tutup
+                  </button>
+                  <button 
+                    className="flex-1 py-4 bg-emerald-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-emerald-500/20 hover:bg-emerald-700 transition-all flex items-center justify-center gap-2"
+                  >
+                    <span className="material-symbols-outlined text-sm">download</span> Unduh Bukti
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
 
-  if (isTutor) {
+  if (isTutor && isTutorSigned) {
     return (
       <div className="space-y-6 animate-in fade-in duration-500">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div>
-            <h2 className="text-2xl font-bold text-slate-800">Presensi Online (Tutor)</h2>
-            <p className="text-slate-500">Pencatatan kehadiran real-time per mata pelajaran.</p>
+          <div className="flex items-center gap-4">
+             <button onClick={() => setIsTutorSigned(false)} className="p-2 hover:bg-slate-100 rounded-xl text-slate-400">
+               <span className="material-symbols-outlined">arrow_back</span>
+             </button>
+             <div>
+               <h2 className="text-2xl font-bold text-slate-800">Presensi Kelas: {selectedMapel}</h2>
+               <p className="text-slate-500">Silakan beri tanda kehadiran pada warga belajar yang hadir.</p>
+             </div>
           </div>
           <div className="flex gap-3">
-            <select className="bg-white border border-slate-200 px-4 py-2 rounded-xl text-sm" value={selectedMapel} onChange={(e) => setSelectedMapel(e.target.value)}>
-              <option>Matematika</option><option>B. Indonesia</option>
-            </select>
-            <button className="bg-emerald-600 text-white px-5 py-2 rounded-xl text-sm font-bold shadow-lg shadow-emerald-500/20">Simpan Presensi</button>
+            <button 
+              onClick={() => {
+                setHasCheckedIn(false);
+                setIsTutorSigned(false);
+                alert("Seluruh presensi berhasil disimpan!");
+              }} 
+              className="bg-emerald-600 text-white px-8 py-3 rounded-2xl text-xs font-black uppercase tracking-widest shadow-lg shadow-emerald-500/20 hover:bg-emerald-700 transition-all"
+            >
+              Simpan & Tutup Kelas
+            </button>
           </div>
         </div>
-        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden">
           <table className="w-full text-left">
             <thead>
-              <tr className="text-[11px] text-slate-400 uppercase tracking-widest border-b border-slate-50">
-                <th className="px-8 py-4">Siswa</th>
-                <th className="px-8 py-4 text-center">Hadir</th>
-                <th className="px-8 py-4 text-center">Izin</th>
-                <th className="px-8 py-4 text-center">Alpa</th>
+              <tr className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">
+                <th className="px-8 py-5">Warga Belajar</th>
+                <th className="px-8 py-5 text-center">Hadir</th>
+                <th className="px-8 py-5 text-center">Izin / Sakit</th>
+                <th className="px-8 py-5 text-center">Alpa</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-50">
+            <tbody className="divide-y divide-slate-100">
               {students.map(s => (
-                <tr key={s.id} className="hover:bg-slate-50/50">
-                  <td className="px-8 py-4 font-semibold text-slate-700">{s.name}</td>
-                  <td className="px-8 py-4 text-center"><input type="radio" name={`att-${s.id}`} defaultChecked={s.status === 'Hadir'} className="w-5 h-5 text-emerald-600" /></td>
-                  <td className="px-8 py-4 text-center"><input type="radio" name={`att-${s.id}`} defaultChecked={s.status === 'Izin'} className="w-5 h-5 text-amber-600" /></td>
-                  <td className="px-8 py-4 text-center"><input type="radio" name={`att-${s.id}`} defaultChecked={s.status === 'Alpa'} className="w-5 h-5 text-red-600" /></td>
+                <tr key={s.id} className="hover:bg-slate-50/50 transition-colors">
+                  <td className="px-8 py-5">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center font-bold text-xs text-slate-400">
+                        {s.name.charAt(0)}
+                      </div>
+                      <span className="font-bold text-slate-800">{s.name}</span>
+                    </div>
+                  </td>
+                  <td className="px-8 py-5 text-center">
+                    <input type="radio" name={`att-${s.id}`} defaultChecked={s.status === 'Hadir'} className="w-5 h-5 accent-emerald-600 cursor-pointer" />
+                  </td>
+                  <td className="px-8 py-5 text-center">
+                    <input type="radio" name={`att-${s.id}`} defaultChecked={s.status === 'Izin'} className="w-5 h-5 accent-amber-500 cursor-pointer" />
+                  </td>
+                  <td className="px-8 py-5 text-center">
+                    <input type="radio" name={`att-${s.id}`} defaultChecked={s.status === 'Alpa'} className="w-5 h-5 accent-rose-500 cursor-pointer" />
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -225,15 +304,19 @@ const AttendanceSystem: React.FC<{ role: UserRole, userId: string }> = ({ role, 
     );
   }
 
-  // --------------------------------------------------------------------------
-  // SISWA VIEW: ENHANCED FACE RECOGNITION ATTENDANCE
-  // --------------------------------------------------------------------------
+  // SIGNATURE VIEW (Used by both Siswa for attendance and Tutor for class opening)
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-slate-800">Presensi Face Recognition</h2>
-          <p className="text-slate-500">Sistem identifikasi biometrik terintegrasi SIAKAD PKBM.</p>
+          <h2 className="text-2xl font-bold text-slate-800">
+            {isTutor ? 'Verifikasi Tanda Tangan Mengajar' : 'Presensi Tanda Tangan Digital'}
+          </h2>
+          <p className="text-slate-500">
+            {isTutor 
+              ? 'Tutor wajib memberikan tanda tangan digital sebagai bukti pelaksanaan KBM.' 
+              : 'Silakan berikan tanda tangan digital Anda untuk mencatat kehadiran hari ini.'}
+          </p>
         </div>
       </div>
 
@@ -244,23 +327,23 @@ const AttendanceSystem: React.FC<{ role: UserRole, userId: string }> = ({ role, 
           <div className="w-full md:w-96 p-12 bg-slate-50/50 border-r border-slate-100 flex flex-col">
             <div className="mb-10">
               <span className="text-[10px] font-black uppercase tracking-[0.25em] text-emerald-600 bg-emerald-100 px-4 py-1.5 rounded-full border border-emerald-200 inline-block mb-4">
-                Biometric Terminal
+                Identity Terminal
               </span>
               <h3 className="text-3xl font-black text-slate-800 leading-none">Konfirmasi Sesi</h3>
             </div>
             
             <div className="space-y-8 flex-1">
               <div className="space-y-2">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Pilih Mata Pelajaran</p>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Mata Pelajaran</p>
                 <select 
                   className="w-full bg-white border border-slate-200 px-5 py-4 rounded-2xl text-sm font-bold focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all appearance-none cursor-pointer"
                   value={selectedMapel}
                   onChange={(e) => {
                     setSelectedMapel(e.target.value);
                     setHasCheckedIn(false);
-                    stopCamera();
+                    clearSignature();
                   }}
-                  disabled={isScanning || hasCheckedIn}
+                  disabled={hasCheckedIn}
                 >
                   <option>Matematika</option>
                   <option>Bahasa Indonesia</option>
@@ -274,7 +357,7 @@ const AttendanceSystem: React.FC<{ role: UserRole, userId: string }> = ({ role, 
                 <div className="space-y-4">
                   <div className="flex items-center gap-4">
                     <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                      <span className="material-symbols-outlined text-lg">schedule</span>
                     </div>
                     <div>
                       <p className="text-xs font-black text-slate-800">08:00 - 09:30 WIB</p>
@@ -283,7 +366,7 @@ const AttendanceSystem: React.FC<{ role: UserRole, userId: string }> = ({ role, 
                   </div>
                   <div className="flex items-center gap-4">
                     <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                      <span className="material-symbols-outlined text-lg">location_on</span>
                     </div>
                     <div>
                       <p className="text-xs font-black text-slate-800">Titik Layanan R. 101</p>
@@ -296,201 +379,102 @@ const AttendanceSystem: React.FC<{ role: UserRole, userId: string }> = ({ role, 
 
             <div className="mt-10 p-6 rounded-3xl bg-amber-50 border border-amber-100">
                <div className="flex items-center gap-3 mb-2">
-                 <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0 1 18 0z" /></svg>
+                 <span className="material-symbols-outlined text-amber-600 text-lg">info</span>
                  <p className="text-xs font-black text-amber-700">Panduan Presensi</p>
                </div>
-               <p className="text-[10px] text-amber-600/80 font-bold leading-relaxed">Posisikan wajah tepat di tengah bingkai. Pastikan pencahayaan cukup dan tidak menggunakan masker atau kacamata hitam.</p>
+               <p className="text-[10px] text-amber-600/80 font-bold leading-relaxed">
+                 Berikan tanda tangan sejelas mungkin pada area kanvas yang tersedia. Tanda tangan ini akan disimpan sebagai arsip digital resmi PKBM.
+               </p>
             </div>
           </div>
 
-          {/* Right: Camera Viewport */}
-          <div className="flex-1 p-12 bg-slate-900 flex flex-col items-center justify-center relative">
+          {/* Right: Signature Canvas */}
+          <div className="flex-1 p-12 bg-slate-100 flex flex-col items-center justify-center relative">
             {hasCheckedIn ? (
               <div className="text-center animate-in zoom-in-95 duration-700">
                  <div className="w-40 h-40 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto mb-8 border border-emerald-500/20 shadow-2xl shadow-emerald-500/20">
-                   <svg className="w-20 h-20 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>
+                   <span className="material-symbols-outlined text-5xl text-emerald-500">check_circle</span>
                  </div>
-                 <h3 className="text-4xl font-black text-white mb-4">Presensi Diterima</h3>
+                 <h3 className="text-4xl font-black text-slate-800 mb-4">Presensi Diterima</h3>
                  <div className="space-y-1">
-                   <p className="text-emerald-400 font-black text-lg">Budi Santoso</p>
-                   <p className="text-slate-500 font-bold text-sm tracking-widest uppercase">ID: 2024001 • Paket C</p>
+                   <p className="text-emerald-600 font-black text-lg">{isTutor ? 'Verifikasi Mengajar' : 'Budi Santoso'}</p>
+                   <p className="text-slate-400 font-bold text-sm tracking-widest uppercase">ID: 2024001 • {selectedMapel}</p>
                  </div>
                  
                  <div className="mt-10 grid grid-cols-2 gap-4">
-                   <div className="bg-white/5 border border-white/10 p-4 rounded-3xl">
-                     <p className="text-[10px] text-slate-500 font-bold uppercase mb-1">Waktu</p>
-                     <p className="text-white font-black">{new Date().toLocaleTimeString('id-ID')}</p>
+                   <div className="bg-white border border-slate-200 p-4 rounded-3xl">
+                     <p className="text-[10px] text-slate-400 font-bold uppercase mb-1">Waktu</p>
+                     <p className="text-slate-800 font-black">{new Date().toLocaleTimeString('id-ID')}</p>
                    </div>
-                   <div className="bg-emerald-500/10 border border-emerald-500/20 p-4 rounded-3xl">
-                     <p className="text-[10px] text-emerald-500/70 font-bold uppercase mb-1">Status</p>
-                     <p className="text-emerald-500 font-black tracking-widest uppercase">Hadir</p>
+                   <div className="bg-emerald-50 border border-emerald-100 p-4 rounded-3xl">
+                     <p className="text-[10px] text-emerald-500 font-bold uppercase mb-1">Status</p>
+                     <p className="text-emerald-600 font-black tracking-widest uppercase">Hadir</p>
                    </div>
                  </div>
 
                  <button 
-                  onClick={() => setHasCheckedIn(false)}
-                  className="mt-12 text-slate-500 hover:text-slate-300 text-xs font-bold underline underline-offset-8 transition-colors"
+                  onClick={() => {
+                    setHasCheckedIn(false);
+                    if (isTutor) setIsTutorSigned(true);
+                  }}
+                  className="mt-12 bg-slate-900 text-white px-8 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-xl shadow-slate-900/20"
                  >
-                   Gunakan Perangkat Lain
+                   {isTutor ? 'Masuk ke Absensi Siswa' : 'Gunakan Perangkat Lain'}
                  </button>
               </div>
-            ) : !isCameraActive ? (
-              <div className="text-center">
-                <div className="relative group mb-10">
-                  <div className="absolute inset-0 bg-emerald-500 blur-3xl opacity-10 group-hover:opacity-20 transition-opacity"></div>
-                  <div className="relative w-64 h-64 rounded-[4rem] bg-white/5 border-2 border-dashed border-white/10 flex flex-col items-center justify-center mx-auto transition-all group-hover:border-emerald-500/50">
-                    <span className="material-symbols-outlined text-7xl text-white/10 group-hover:text-emerald-500/30 transition-colors">face</span>
-                  </div>
-                </div>
-                <h3 className="text-2xl font-black text-white mb-3">AI Vision Ready</h3>
-                <p className="text-slate-500 mb-12 max-w-xs mx-auto text-sm font-medium">Sistem siap melakukan pemindaian wajah secara real-time.</p>
-                <button 
-                  onClick={startCamera}
-                  className="bg-emerald-600 text-white px-12 py-5 rounded-[2rem] font-black text-lg shadow-2xl shadow-emerald-600/30 hover:bg-emerald-500 transition-all hover:scale-105 active:scale-95 flex items-center gap-3 mx-auto"
-                >
-                  <span className="material-symbols-outlined">videocam</span>
-                  Mulai Pemindaian
-                </button>
-              </div>
             ) : (
-              <div className="relative w-full max-w-2xl animate-in fade-in zoom-in-95 duration-500">
-                <div className="relative aspect-video rounded-[3rem] overflow-hidden bg-black border-4 border-white/5 shadow-2xl ring-1 ring-white/10">
-                  <video 
-                    ref={videoRef} 
-                    autoPlay 
-                    playsInline 
-                    className="w-full h-full object-cover scale-x-[-1] opacity-80"
-                  />
-                  
-                  {/* Biometric Overlays */}
-                  <div className="absolute inset-0 pointer-events-none">
-                    
-                    {/* Face Detection Frame */}
-                    <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[280px] h-[350px] border-2 rounded-[4rem] transition-all duration-700 ${isScanning ? 'border-emerald-500 scale-105 shadow-[0_0_50px_rgba(16,185,129,0.3)]' : 'border-white/20 border-dashed'}`}>
-                      {/* Corners */}
-                      <div className="absolute -top-1 -left-1 w-12 h-12 border-t-4 border-l-4 border-emerald-500 rounded-tl-[3.5rem]"></div>
-                      <div className="absolute -top-1 -right-1 w-12 h-12 border-t-4 border-r-4 border-emerald-500 rounded-tr-[3.5rem]"></div>
-                      <div className="absolute -bottom-1 -left-1 w-12 h-12 border-b-4 border-l-4 border-emerald-500 rounded-bl-[3.5rem]"></div>
-                      <div className="absolute -bottom-1 -right-1 w-12 h-12 border-b-4 border-r-4 border-emerald-500 rounded-br-[3.5rem]"></div>
-                      
-                      {/* Laser Line */}
-                      {isScanning && (
-                        <div className="absolute inset-x-0 h-1 bg-gradient-to-r from-transparent via-emerald-400 to-transparent shadow-[0_0_20px_rgba(52,211,153,0.8)] animate-laser-scan top-0 z-20"></div>
-                      )}
-
-                      {/* Landmarks Simulation */}
-                      {isScanning && (
-                        <div className="absolute inset-0 opacity-40">
-                          {[...Array(12)].map((_, i) => (
-                            <div 
-                              key={i} 
-                              className="absolute w-1 h-1 bg-emerald-400 rounded-full animate-pulse" 
-                              style={{ 
-                                top: `${20 + Math.random() * 60}%`, 
-                                left: `${20 + Math.random() * 60}%`,
-                                animationDelay: `${Math.random() * 2}s`
-                              }}
-                            />
-                          ))}
+              <div className="w-full max-w-2xl flex flex-col gap-8 animate-in fade-in duration-500">
+                <div className="space-y-4">
+                   <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">Kanvas Tanda Tangan</h4>
+                      <button onClick={clearSignature} className="text-[10px] font-black text-rose-500 uppercase tracking-widest flex items-center gap-1 hover:text-rose-700">
+                        <span className="material-symbols-outlined text-sm">ink_eraser</span>
+                        Hapus Kanvas
+                      </button>
+                   </div>
+                   
+                   <div className="relative bg-white rounded-[2.5rem] border-4 border-slate-200 shadow-inner overflow-hidden aspect-[4/3] cursor-crosshair group">
+                      <canvas 
+                        ref={canvasRef}
+                        width={600}
+                        height={450}
+                        onMouseDown={startDrawing}
+                        onMouseMove={draw}
+                        onMouseUp={endDrawing}
+                        onMouseOut={endDrawing}
+                        onTouchStart={startDrawing}
+                        onTouchMove={draw}
+                        onTouchEnd={endDrawing}
+                        className="w-full h-full touch-none"
+                      />
+                      {isEmpty && (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none opacity-20 group-hover:opacity-30 transition-opacity">
+                           <span className="material-symbols-outlined text-8xl mb-4">edit_note</span>
+                           <p className="text-sm font-black uppercase tracking-[0.3em]">Area Tanda Tangan</p>
                         </div>
                       )}
-                    </div>
-                  </div>
-
-                  {/* Telemetry Data */}
-                  <div className="absolute top-8 left-8 space-y-2">
-                    <div className="bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full text-[9px] font-black text-white/60 flex items-center gap-2 border border-white/10 uppercase tracking-widest">
-                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
-                      Terminal_01: {isScanning ? 'Processing' : 'Standby'}
-                    </div>
-                    {isScanning && (
-                      <div className="bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full text-[9px] font-black text-emerald-400 flex items-center gap-2 border border-emerald-500/20 uppercase tracking-widest">
-                        Biometric_X: {simulatedCoords.x} | Y: {simulatedCoords.y}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Scan Progress Ring (Top Right) */}
-                  {isScanning && (
-                    <div className="absolute top-8 right-8">
-                      <div className="relative w-16 h-16 flex items-center justify-center">
-                        <svg className="w-full h-full transform -rotate-90">
-                          <circle cx="32" cy="32" r="28" stroke="currentColor" strokeWidth="4" fill="transparent" className="text-white/10" />
-                          <circle cx="32" cy="32" r="28" stroke="currentColor" strokeWidth="4" fill="transparent" strokeDasharray="176" strokeDashoffset={176 - (176 * scanProgress) / 100} className="text-emerald-500 transition-all duration-300" />
-                        </svg>
-                        <span className="absolute text-[10px] font-black text-white">{scanProgress}%</span>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Recognition Prompt Overlay */}
-                  <div className="absolute bottom-10 inset-x-0 flex justify-center px-10">
-                    <div className="w-full max-w-sm bg-black/60 backdrop-blur-xl p-5 rounded-[2.5rem] border border-white/10 text-center shadow-2xl">
-                       <p className="text-white text-[11px] font-black uppercase tracking-[0.2em] mb-1">
-                        {scanStatus === 'detecting' ? 'Mendeteksi Wajah...' : 
-                         scanStatus === 'verifying' ? 'Ekstraksi Fitur Biometrik' : 
-                         scanStatus === 'matching' ? 'Mencocokkan Database SIAKAD' :
-                         'Analisis Selesai'}
-                       </p>
-                       <div className="w-full h-1 bg-white/10 rounded-full mt-3 overflow-hidden">
-                         <div className={`h-full bg-emerald-500 transition-all duration-500 ${isScanning ? 'w-full' : 'w-0'}`}></div>
-                       </div>
-                    </div>
-                  </div>
-
-                  {/* Success Flash */}
-                  {scanStatus === 'success' && (
-                    <div className="absolute inset-0 bg-white animate-out fade-out duration-1000 z-50"></div>
-                  )}
+                      {/* Grid line helper */}
+                      <div className="absolute bottom-16 inset-x-8 h-px bg-slate-100 pointer-events-none"></div>
+                   </div>
                 </div>
 
-                <div className="mt-12 flex flex-col gap-4">
-                  <button 
-                    onClick={handleFaceScan}
-                    disabled={isScanning}
-                    className={`w-full py-6 rounded-[2rem] font-black text-xl shadow-2xl transition-all flex items-center justify-center gap-4 ${
-                      isScanning 
-                        ? 'bg-emerald-900/40 text-emerald-400 border border-emerald-500/30 cursor-wait' 
-                        : 'bg-emerald-600 text-white hover:bg-emerald-500 hover:scale-[1.02] active:scale-95'
-                    }`}
-                  >
-                    {isScanning ? (
-                      <>
-                        <div className="w-5 h-5 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin"></div>
-                        Memproses Identitas...
-                      </>
-                    ) : (
-                      <>
-                        <span className="material-symbols-outlined">fingerprint</span>
-                        Ambil Presensi Sekarang
-                      </>
-                    )}
-                  </button>
-                  <button 
-                    onClick={stopCamera}
-                    disabled={isScanning}
-                    className="w-full py-4 bg-white/5 text-slate-400 rounded-[2rem] font-bold text-sm hover:bg-white/10 transition-all disabled:opacity-30 flex items-center justify-center gap-2 border border-white/10"
-                  >
-                    Nonaktifkan Kamera
-                  </button>
+                <div className="flex flex-col gap-4">
+                   <button 
+                    onClick={saveSignature}
+                    className="w-full py-6 bg-emerald-600 text-white rounded-[2rem] font-black text-xl shadow-2xl shadow-emerald-600/20 hover:bg-emerald-500 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-4"
+                   >
+                     <span className="material-symbols-outlined">draw</span>
+                     Simpan Presensi
+                   </button>
+                   <p className="text-center text-[10px] text-slate-400 font-bold uppercase tracking-widest italic">
+                     * Dengan menyimpan, Anda menyatakan kehadiran pada sesi {selectedMapel} secara sah.
+                   </p>
                 </div>
               </div>
             )}
           </div>
         </div>
       </div>
-
-      <style>{`
-        @keyframes laser-scan {
-          0% { top: 0%; opacity: 0; }
-          10% { opacity: 1; }
-          90% { opacity: 1; }
-          100% { top: 100%; opacity: 0; }
-        }
-        .animate-laser-scan {
-          animation: laser-scan 2.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-        }
-      `}</style>
     </div>
   );
 };

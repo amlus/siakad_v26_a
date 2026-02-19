@@ -43,7 +43,6 @@ const StudentManagement: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string>('Semua');
   const [selectedStudent, setSelectedStudent] = useState<WargaBelajar | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   // Form State for New Student
   const [formData, setFormData] = useState<Omit<WargaBelajar, 'id'>>({
@@ -62,7 +61,6 @@ const StudentManagement: React.FC = () => {
     noTelepon: ''
   });
 
-  // Helper for dynamic class options
   const getClassOptions = (program: string) => {
     switch (program) {
       case 'Paket A': return ['Kelas 1', 'Kelas 2', 'Kelas 3', 'Kelas 4', 'Kelas 5', 'Kelas 6'];
@@ -72,7 +70,6 @@ const StudentManagement: React.FC = () => {
     }
   };
 
-  // Ensure class is valid when program changes
   useEffect(() => {
     const options = getClassOptions(formData.program);
     if (!options.includes(formData.kelas)) {
@@ -105,12 +102,6 @@ const StudentManagement: React.FC = () => {
     });
   };
 
-  const handleImportCSV = () => {
-    // Simulating import success
-    alert('Import simulasi: 50 data warga belajar telah diproses.');
-    setIsImportModalOpen(false);
-  };
-
   const handleDeleteStudent = (id: string) => {
     if (window.confirm('Apakah Anda yakin ingin menghapus data warga belajar ini?')) {
       setStudents(students.filter(s => s.id !== id));
@@ -125,13 +116,6 @@ const StudentManagement: React.FC = () => {
           <p className="text-slate-500">Pangkalan data induk Warga Belajar PKBM At Taqwa Mandiri.</p>
         </div>
         <div className="flex gap-3">
-          <button 
-            onClick={() => setIsImportModalOpen(true)}
-            className="bg-white border border-slate-200 text-slate-600 px-6 py-3 rounded-2xl flex items-center gap-2 hover:bg-slate-50 transition-all font-bold text-sm shadow-sm"
-          >
-            <span className="material-symbols-outlined text-lg">upload_file</span>
-            Import Data
-          </button>
           <button 
             onClick={() => setIsAddModalOpen(true)}
             className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-2xl flex items-center gap-2 transition-all shadow-lg shadow-emerald-500/20 font-bold text-sm"
@@ -265,47 +249,6 @@ const StudentManagement: React.FC = () => {
         </div>
       </div>
 
-      {/* Import Modal */}
-      {isImportModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-lg overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
-            <div className="p-8 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
-              <div>
-                <h3 className="text-xl font-black text-slate-800">Import Warga Belajar</h3>
-                <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-0.5">Upload file CSV/Excel</p>
-              </div>
-              <button onClick={() => setIsImportModalOpen(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
-                <span className="material-symbols-outlined">close</span>
-              </button>
-            </div>
-            
-            <div className="p-8 space-y-6">
-              <div className="p-6 border-2 border-dashed border-slate-200 rounded-3xl bg-slate-50 flex flex-col items-center justify-center gap-4 group hover:border-emerald-400 transition-all cursor-pointer">
-                <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-slate-400 group-hover:text-emerald-500 shadow-sm transition-colors">
-                   <span className="material-symbols-outlined text-4xl">upload_file</span>
-                </div>
-                <div className="text-center">
-                   <p className="text-sm font-bold text-slate-700">Klik atau seret file ke sini</p>
-                   <p className="text-[10px] text-slate-400 font-medium">CSV, XLS, atau XLSX (Maks 10MB)</p>
-                </div>
-              </div>
-
-              <div className="bg-amber-50 border border-amber-100 p-4 rounded-2xl space-y-2">
-                <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest">Petunjuk Format</p>
-                <p className="text-[10px] text-amber-700/80 font-medium leading-relaxed">
-                  Gunakan format kolom: Nama Lengkap, NISN, NIS, Program, Kelas, Jenis Kelamin, Tanggal Lahir, Alamat. Pastikan header sesuai dengan template.
-                </p>
-              </div>
-
-              <div className="flex gap-4">
-                <button className="flex-1 py-3 text-xs font-black uppercase tracking-widest text-emerald-600 bg-emerald-50 rounded-xl hover:bg-emerald-100 transition-all">Download Template</button>
-                <button onClick={handleImportCSV} className="flex-[2] py-3 bg-slate-900 text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-xl shadow-slate-900/20 hover:bg-slate-800 transition-all">Proses Import</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Extensive Add Student Modal */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
@@ -338,7 +281,7 @@ const StudentManagement: React.FC = () => {
                 <div className="flex items-center gap-3">
                    <div className="w-8 h-8 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600">
                       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M4.26 10.147a60.438 60.438 0 0 0-.491 6.347A48.62 48.62 0 0 1 12 20.904a48.62 48.62 0 0 1 8.232-4.41 60.46 60.46 0 0 0-.491-6.347m-15.482 0a50.636 50.636 0 0 0-2.425 4.708 5.25 5.25 0 0 0 2.262 6.44l.353.214c.118.071.26.071.378 0l.353-.214a5.25 5.25 0 0 0 2.262-6.44 50.664 50.664 0 0 0-2.425-4.708Zm15.482 0a50.636 50.636 0 0 1 2.425 4.708 5.25 5.25 0 0 1-2.262 6.44l-.353.214a.375.375 0 0 1-.378 0l-.353-.214a5.25 5.25 0 0 1-2.262-6.44 50.664 50.664 0 0 1 2.425-4.708Zm-15.482 0L12 3l8.738 7.147" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M4.26 10.147a60.438 60.438 0 0 0-.491 6.347A48.62 48.62 0 0 1 12 20.904a48.62 48.62 0 0 1 8.232-4.41 60.46 60.46 0 0 0-.491-6.347m-15.482 0a50.636 50.636 0 0 0-2.425 4.708 5.25 5.25 0 0 0 2.262 6.44l.353.214c.118.071.26.071.378 0l.353-.214a5.25 5.25 0 0 0 2.262-6.44 50.664 50.664 0 0 0-2.425-4.708Zm15.482 0a50.636 50.636 0 0 1 2.425 4.708 5.25 5.25 0 0 1-2.262 6.44l-.353.214a.375.375 0 0 1-.378 0l-.353-.214a5.25 5.25 0 0 0 2.262-6.44 50.664 50.664 0 0 1 2.425-4.708Zm-15.482 0L12 3l8.738 7.147" />
                       </svg>
                    </div>
                    <h4 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">Identitas & Penempatan Akademik</h4>

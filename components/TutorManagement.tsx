@@ -3,15 +3,17 @@ import React, { useState } from 'react';
 import { Tutor } from '../types';
 
 const initialTutors: Tutor[] = [
-  { id: '1', nama: 'Ahmad S.Pd', nuptk: '12345678', jabatan: 'Tutor Utama', mapel: ['Matematika', 'IPA'], kelas: ['Kelas 10', 'Kelas 11', 'Kelas 12'], tugasTambahan: ['Wali Kelas 10', 'Koordinator Kurikulum'] },
-  { id: '2', nama: 'Siti M.Pd', nuptk: '87654321', jabatan: 'Tutor', mapel: ['Bahasa Indonesia'], kelas: ['Kelas 7', 'Kelas 8', 'Kelas 9'], tugasTambahan: ['Penanggungjawab Titik Layanan Pancoran Mas'] },
-  { id: '3', nama: 'Budi Santoso S.Ag', nuptk: '11223344', jabatan: 'Tutor', mapel: ['Agama', 'PPKn'], kelas: ['Kelas 10', 'Kelas 12'], tugasTambahan: [] },
+  // Fix: added missing required property 'tanggalLahir'
+  { id: '1', nama: 'Ahmad S.Pd', nuptk: '12345678', jabatan: 'Tutor Utama', mapel: ['Matematika', 'IPA'], kelas: ['Kelas 10', 'Kelas 11', 'Kelas 12'], tugasTambahan: ['Wali Kelas 10', 'Koordinator Kurikulum'], tanggalLahir: '1980-01-01' },
+  // Fix: added missing required property 'tanggalLahir'
+  { id: '2', nama: 'Siti M.Pd', nuptk: '87654321', jabatan: 'Tutor', mapel: ['Bahasa Indonesia'], kelas: ['Kelas 7', 'Kelas 8', 'Kelas 9'], tugasTambahan: ['Penanggungjawab Titik Layanan Pancoran Mas'], tanggalLahir: '1985-05-05' },
+  // Fix: added missing required property 'tanggalLahir'
+  { id: '3', nama: 'Budi Santoso S.Ag', nuptk: '11223344', jabatan: 'Tutor', mapel: ['Agama', 'PPKn'], kelas: ['Kelas 10', 'Kelas 12'], tugasTambahan: [], tanggalLahir: '1990-10-10' },
 ];
 
 const TutorManagement: React.FC = () => {
   const [tutors, setTutors] = useState<Tutor[]>(initialTutors);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [editingTutor, setEditingTutor] = useState<Tutor | null>(null);
   
   const [formData, setFormData] = useState({
@@ -20,12 +22,15 @@ const TutorManagement: React.FC = () => {
     jabatan: 'Tutor',
     mapelInput: '',
     kelasInput: '',
-    tugasInput: ''
+    tugasInput: '',
+    // Fix: added tanggalLahir to form data
+    tanggalLahir: ''
   });
 
   const openAddModal = () => {
     setEditingTutor(null);
-    setFormData({ nama: '', nuptk: '', jabatan: 'Tutor', mapelInput: '', kelasInput: '', tugasInput: '' });
+    // Fix: added default tanggalLahir for new tutor
+    setFormData({ nama: '', nuptk: '', jabatan: 'Tutor', mapelInput: '', kelasInput: '', tugasInput: '', tanggalLahir: '1990-01-01' });
     setIsModalOpen(true);
   };
 
@@ -37,7 +42,9 @@ const TutorManagement: React.FC = () => {
       jabatan: tutor.jabatan,
       mapelInput: tutor.mapel.join(', '),
       kelasInput: tutor.kelas.join(', '),
-      tugasInput: (tutor.tugasTambahan || []).join(', ')
+      tugasInput: (tutor.tugasTambahan || []).join(', '),
+      // Fix: added tanggalLahir to editing form data
+      tanggalLahir: tutor.tanggalLahir
     });
     setIsModalOpen(true);
   };
@@ -49,8 +56,9 @@ const TutorManagement: React.FC = () => {
     const tugasTambahan = formData.tugasInput.split(',').map(s => s.trim()).filter(s => s !== '');
 
     if (editingTutor) {
-      setTutors(tutors.map(t => t.id === editingTutor.id ? { ...t, ...formData, mapel, kelas, tugasTambahan } : t));
+      setTutors(tutors.map(t => t.id === editingTutor.id ? { ...t, ...formData, mapel, kelas, tugasTambahan, tanggalLahir: formData.tanggalLahir } : t));
     } else {
+      // Fix: added missing property 'tanggalLahir' to new tutor object
       const newTutor: Tutor = {
         id: Math.random().toString(36).substr(2, 9),
         nama: formData.nama,
@@ -58,16 +66,12 @@ const TutorManagement: React.FC = () => {
         jabatan: formData.jabatan,
         mapel,
         kelas,
-        tugasTambahan
+        tugasTambahan,
+        tanggalLahir: formData.tanggalLahir
       };
       setTutors([...tutors, newTutor]);
     }
     setIsModalOpen(false);
-  };
-
-  const handleImportCSV = () => {
-    alert('Import tutor berhasil! Data telah masuk ke database SIAKAD.');
-    setIsImportModalOpen(false);
   };
 
   const handleDelete = (id: string) => {
@@ -84,13 +88,6 @@ const TutorManagement: React.FC = () => {
           <p className="text-slate-500">Kelola data tenaga pendidik, penugasan kelas, dan tugas tambahan.</p>
         </div>
         <div className="flex gap-3">
-          <button 
-            onClick={() => setIsImportModalOpen(true)}
-            className="bg-white border border-slate-200 text-slate-600 px-6 py-3 rounded-2xl flex items-center gap-2 hover:bg-slate-50 transition-all font-bold text-sm shadow-sm"
-          >
-            <span className="material-symbols-outlined text-lg">group_add</span>
-            Import Tutor
-          </button>
           <button 
             onClick={openAddModal}
             className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-lg shadow-emerald-500/20 flex items-center gap-2 transition-all"
@@ -171,46 +168,6 @@ const TutorManagement: React.FC = () => {
         ))}
       </div>
 
-      {/* Import Modal */}
-      {isImportModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-lg overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
-            <div className="p-8 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
-              <div>
-                <h3 className="text-xl font-black text-slate-800">Import Data Tutor</h3>
-                <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-0.5">Upload Spreadsheet Kepegawaian</p>
-              </div>
-              <button onClick={() => setIsImportModalOpen(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
-                <span className="material-symbols-outlined">close</span>
-              </button>
-            </div>
-            
-            <div className="p-8 space-y-6">
-              <div className="p-10 border-2 border-dashed border-slate-200 rounded-3xl bg-slate-50 flex flex-col items-center justify-center gap-4 group hover:border-emerald-400 transition-all cursor-pointer">
-                <div className="w-20 h-20 bg-white rounded-2xl flex items-center justify-center text-slate-300 group-hover:text-emerald-500 shadow-sm transition-colors">
-                   <span className="material-symbols-outlined text-5xl">cloud_upload</span>
-                </div>
-                <div className="text-center">
-                   <p className="text-sm font-bold text-slate-700">Pilih file tutor untuk diunggah</p>
-                   <p className="text-[10px] text-slate-400 font-medium">Excel (.xlsx) atau CSV yang didukung</p>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-3">
-                <div className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-100 rounded-2xl">
-                   <span className="material-symbols-outlined text-blue-600">info</span>
-                   <p className="text-[10px] text-blue-700 font-medium">Pastikan kolom Nama, NUPTK, dan Jabatan terisi dengan benar.</p>
-                </div>
-                <div className="flex gap-4">
-                  <button className="flex-1 py-3 text-xs font-black uppercase tracking-widest text-slate-600 bg-slate-100 rounded-xl hover:bg-slate-200 transition-all">Format Template</button>
-                  <button onClick={handleImportCSV} className="flex-[2] py-3 bg-emerald-600 text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-xl shadow-emerald-600/20 hover:bg-emerald-700 transition-all">Mulai Import</button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Add/Edit Tutor Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
@@ -232,13 +189,20 @@ const TutorManagement: React.FC = () => {
                   <input className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500" placeholder="1234..." value={formData.nuptk} onChange={e => setFormData({...formData, nuptk: e.target.value})} />
                 </div>
               </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Jabatan</label>
-                <select className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm bg-white" value={formData.jabatan} onChange={e => setFormData({...formData, jabatan: e.target.value})}>
-                  <option>Tutor Utama</option>
-                  <option>Tutor</option>
-                  <option>Tutor Pendamping</option>
-                </select>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Jabatan</label>
+                  <select className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm bg-white" value={formData.jabatan} onChange={e => setFormData({...formData, jabatan: e.target.value})}>
+                    <option>Tutor Utama</option>
+                    <option>Tutor</option>
+                    <option>Tutor Pendamping</option>
+                  </select>
+                </div>
+                {/* Fix: Added input for tanggalLahir */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tanggal Lahir</label>
+                  <input required type="date" className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500" value={formData.tanggalLahir} onChange={e => setFormData({...formData, tanggalLahir: e.target.value})} />
+                </div>
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Mata Pelajaran (Pisahkan Koma)</label>

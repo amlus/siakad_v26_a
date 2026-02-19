@@ -5,7 +5,6 @@ export enum UserRole {
   SISWA = 'SISWA'
 }
 
-// Fix: Added optional properties to User interface to support SISWA and TUTOR role specific fields
 export interface User {
   id: string;
   name: string;
@@ -17,6 +16,7 @@ export interface User {
   program?: string;
   nis?: string;
   tugasTambahan?: string[];
+  tanggalLahir?: string; // Format YYYY-MM-DD
 }
 
 export interface WargaBelajar {
@@ -44,35 +44,39 @@ export interface Tutor {
   mapel: string[];
   kelas: string[];
   tugasTambahan?: string[];
+  tanggalLahir: string; // Tambahan untuk login
 }
 
 export interface MataPelajaran {
   id: string;
   nama: string;
   kode: string;
+  program: 'Paket A' | 'Paket B' | 'Paket C';
   jamTatapMuka: number;
   jamTutorial: number;
   jamMandiri: number;
   skk: number;
 }
 
-export interface Jadwal {
-  id: string;
-  hari: string;
-  jam: string;
-  mapel: string;
-  tutor: string;
-  ruang: string;
+export interface CapaianKompetensi {
+  materi: string;
+  skor: number;
+  deskripsi: string;
 }
 
 export interface Nilai {
   id: string;
   siswaId: string;
   mapelId: string;
+  mapelNama: string; 
+  tahunAjaran: string;
+  semester: 'Ganjil' | 'Genap';
+  kkm: number;
   harian: number;
   tugas: number;
   uts: number;
   uas: number;
+  capaianKompetensi: CapaianKompetensi[];
 }
 
 export interface AbsensiRecord {
